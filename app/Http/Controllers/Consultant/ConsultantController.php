@@ -21,12 +21,12 @@ class ConsultantController extends Controller
         try {
             $consultants = DB::table('cao_usuario as cu')
                 ->select(
-                    'cu.uf_orgao_emissor',
-	                'cu.co_usuario',
-	                'cu.no_usuario',
-	                'ps.co_tipo_usuario',
-	                'ps.co_sistema',
-	                'ps.in_ativo'
+                    'cu.uf_orgao_emissor as organization',
+	                'cu.co_usuario as userName',
+	                'cu.no_usuario as fullName',
+	                'ps.co_tipo_usuario as typeUser',
+	                'ps.co_sistema as system',
+	                'ps.in_ativo as isActive'
                 )
                 ->join('permissao_sistema as ps', 'ps.co_usuario', 'cu.co_usuario')
                 ->where('ps.co_sistema', 1)
@@ -96,12 +96,39 @@ class ConsultantController extends Controller
         $consultants    = $request->consultants;
         $from           = $request->from;
         $to             = $request->to;
+
+        return [];
     }
 
     private function getDataForPieChart ($request) {
         $consultants    = $request->consultants;
         $from           = $request->from;
         $to             = $request->to;
+
+        $invoicesTotal = DB::table('cao_os as co')
+            ->selectRaw('
+                co.co_usuario as username,
+                sum(
+                    round(cf.valor - (cf.valor * cf.total_imp_inc / 100), 2)
+                ) as net_income
+            ')
+            ->join('cao_fatura as cf', 'cf.co_os', 'co.co_os')
+            ->whereIn('co.co_usuario', $consultants)
+            ->whereBetween('cf.data_emissao', [$from, $to])
+            ->whereColumn('co.co_sistema', 'cf.co_sistema')
+            ->groupByRaw('1')
+            ->orderBy('co.co_usuario')
+            ->get();
+
+        if ($invoicesTotal) {
+            $detail = [
+                'list' => $invoicesTotal,
+                'total' => $invoicesTotal->sum('net_income')
+            ];
+            return $detail;
+        }
+
+        return [];
     }
 
     public function getDataGraph (Request $request, $type) {
@@ -130,6 +157,6 @@ class ConsultantController extends Controller
             return $this->error('Internal server error', $th, 500);
         }
 
-        return $this->success(count($data) ? 'Success' : 'Not results', $data ?? []);
+        return $this->success(!empty($data) ? 'Success' : 'Not results', $data ?? []);
     }
 }
