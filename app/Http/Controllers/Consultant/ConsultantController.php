@@ -97,6 +97,39 @@ class ConsultantController extends Controller
         $from           = $request->from;
         $to             = $request->to;
 
+        $invoicesTotal = DB::table('cao_os as co')
+            ->selectRaw('
+                co.co_usuario as username,
+                extract(year_month from cf.data_emissao) as date,
+                cu.no_usuario as fullname,
+                sum(
+                    round(cf.valor - (cf.valor * cf.total_imp_inc / 100), 2)
+                ) as net_income
+            ')
+            ->join('cao_fatura as cf', 'cf.co_os', 'co.co_os')
+            ->join('cao_usuario as cu', 'cu.co_usuario', 'co.co_usuario')
+            ->whereIn('co.co_usuario', $consultants)
+            ->whereBetween('cf.data_emissao', [$from, $to])
+            ->whereColumn('co.co_sistema', 'cf.co_sistema')
+            ->groupByRaw('1, 2')
+            ->orderBy('co.co_usuario')
+            ->get();
+
+        $average = DB::table('cao_salario as cs')
+            ->selectRaw('round(sum(cs.brut_salario) / count(cs.brut_salario) , 2) as average_fixed_salary')
+            ->whereIn('cs.co_usuario', $consultants)
+            ->first();
+
+        if ($invoicesTotal) {
+            $detail = [
+                'list'          => $invoicesTotal,
+                'total_income'  => $invoicesTotal->sum('net_income'),
+                'max_income'    => $invoicesTotal->max('net_income'),
+                'average_fixed_salary' => isset($average->average_fixed_salary) ? $average->average_fixed_salary : 0
+            ];
+            return $detail;
+        }
+
         return [];
     }
 
@@ -108,21 +141,23 @@ class ConsultantController extends Controller
         $invoicesTotal = DB::table('cao_os as co')
             ->selectRaw('
                 co.co_usuario as username,
+                cu.no_usuario as fullname,
                 sum(
                     round(cf.valor - (cf.valor * cf.total_imp_inc / 100), 2)
                 ) as net_income
             ')
             ->join('cao_fatura as cf', 'cf.co_os', 'co.co_os')
+            ->join('cao_usuario as cu', 'cu.co_usuario', 'co.co_usuario')
             ->whereIn('co.co_usuario', $consultants)
             ->whereBetween('cf.data_emissao', [$from, $to])
             ->whereColumn('co.co_sistema', 'cf.co_sistema')
-            ->groupByRaw('1')
+            ->groupByRaw('1, 2')
             ->orderBy('co.co_usuario')
             ->get();
 
         if ($invoicesTotal) {
             $detail = [
-                'list' => $invoicesTotal,
+                'list'  => $invoicesTotal,
                 'total' => $invoicesTotal->sum('net_income')
             ];
             return $detail;
