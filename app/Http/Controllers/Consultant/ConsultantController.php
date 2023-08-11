@@ -100,7 +100,7 @@ class ConsultantController extends Controller
         $invoicesTotal = DB::table('cao_os as co')
             ->selectRaw('
                 co.co_usuario as username,
-                extract(year_month from cf.data_emissao) as date,
+                month(cf.data_emissao) as date,
                 cu.no_usuario as fullname,
                 sum(
                     round(cf.valor - (cf.valor * cf.total_imp_inc / 100), 2)
@@ -122,7 +122,7 @@ class ConsultantController extends Controller
 
         if ($invoicesTotal) {
             $detail = [
-                'list'          => $invoicesTotal,
+                'list'          => $invoicesTotal->groupBy('date'),
                 'total_income'  => $invoicesTotal->sum('net_income'),
                 'max_income'    => $invoicesTotal->max('net_income'),
                 'average_fixed_salary' => isset($average->average_fixed_salary) ? $average->average_fixed_salary : 0
