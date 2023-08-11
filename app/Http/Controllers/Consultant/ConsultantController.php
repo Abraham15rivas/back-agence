@@ -120,12 +120,23 @@ class ConsultantController extends Controller
             ->whereIn('cs.co_usuario', $consultants)
             ->first();
 
+        $consultants = DB::table('cao_usuario as cu')
+            ->select(
+                'cu.no_usuario as fullname',
+                'cu.co_usuario as username'
+            )
+            ->whereIn('cu.co_usuario', $consultants)
+            ->get();
+
+        $fromToDate = explode('-', $from)[0] . ' a ' . explode('-', $to)[0];
+
         if ($invoicesTotal) {
             $detail = [
-                'list'          => $invoicesTotal->groupBy('date'),
-                'total_income'  => $invoicesTotal->sum('net_income'),
-                'max_income'    => $invoicesTotal->max('net_income'),
-                'average_fixed_salary' => isset($average->average_fixed_salary) ? $average->average_fixed_salary : 0
+                'list'                  => $invoicesTotal->groupBy('username'),
+                'max_income'            => $invoicesTotal->max('net_income'),
+                'average_fixed_salary'  => isset($average->average_fixed_salary) ? $average->average_fixed_salary : 0,
+                'consultants'           => $consultants,
+                'from_to_date'          => $fromToDate
             ];
             return $detail;
         }
