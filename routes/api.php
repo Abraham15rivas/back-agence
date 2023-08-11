@@ -1,7 +1,7 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Consultant\ConsultantController;
 
 /*
 |--------------------------------------------------------------------------
@@ -14,6 +14,10 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware('auth:api')->get('/user', function (Request $request) {
-    return $request->user();
+Route::group([
+    'prefix' => 'v1',
+], function () {
+    Route::get('consultants', [ConsultantController::class, 'index']);
+    Route::get('consultants/reports', [ConsultantController::class, 'getReport']);
+    Route::get('consultants/{type}/graph', [ConsultantController::class, 'getDataGraph']);
 });
